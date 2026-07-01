@@ -21,7 +21,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 82.156.238.108 >> ~/.ssh/known_hosts
+          printf '%s\n' '82.156.238.108 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPBEaAZZ0G+RjFZkU+hUqabVt8LqrUNq1OxAsJb+J0nf' > ~/.ssh/known_hosts
 
       - name: Upload project
         run: |
