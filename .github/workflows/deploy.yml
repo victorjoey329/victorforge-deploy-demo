@@ -30,7 +30,7 @@ jobs:
 
       - name: Build and deploy
         run: |
-          ssh -p 443 ubuntu@82.156.238.108 <<'EOF'
+          ssh -p 22 ubuntu@82.156.238.108 <<'EOF'
             set -e
             mkdir -p ~/apps/victorforge-deploy-demo
             tar -xzf /tmp/victorforge-app.tar.gz -C ~/apps/victorforge-deploy-demo
