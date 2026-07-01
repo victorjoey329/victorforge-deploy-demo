@@ -21,12 +21,12 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' '[82.156.238.108]:443 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPBEaAZZ0G+RjFZkU+hUqabVt8LqrUNq1OxAsJb+J0nf' > ~/.ssh/known_hosts
+          printf '%s\n' '[82.156.238.108]:22 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPBEaAZZ0G+RjFZkU+hUqabVt8LqrUNq1OxAsJb+J0nf' > ~/.ssh/known_hosts
 
       - name: Upload project
         run: |
           tar --exclude='.git' -czf /tmp/victorforge-app.tar.gz .
-          scp -P 443 /tmp/victorforge-app.tar.gz ubuntu@82.156.238.108:/tmp/victorforge-app.tar.gz
+          scp -P 22 /tmp/victorforge-app.tar.gz ubuntu@82.156.238.108:/tmp/victorforge-app.tar.gz
 
       - name: Build and deploy
         run: |
