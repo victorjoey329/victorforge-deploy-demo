@@ -6,9 +6,20 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+env:
+  SERVER_HOST: 82.156.238.108
+  SERVER_USER: ubuntu
+  SERVER_PORT: 22
+  APP_DIR: /home/ubuntu/apps/victorforge-deploy-demo
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -18,25 +29,40 @@ jobs:
         env:
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
+          set -euo pipefail
+          test -n "$SERVER_SSH_KEY" || { echo "SERVER_SSH_KEY secret is empty"; exit 1; }
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SERVER_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' '[82.156.238.108]:22 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPBEaAZZ0G+RjFZkU+hUqabVt8LqrUNq1OxAsJb+J0nf' > ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null
+          printf '%s\n' "$SERVER_HOST ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPBEaAZZ0G+RjFZkU+hUqabVt8LqrUNq1OxAsJb+J0nf" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Test SSH connection
+        run: |
+          ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            'echo "SSH connected to $(hostname) as $(whoami)"'
 
       - name: Upload project
         run: |
+          set -euo pipefail
           tar --exclude='.git' -czf /tmp/victorforge-app.tar.gz .
-          scp -P 22 /tmp/victorforge-app.tar.gz ubuntu@82.156.238.108:/tmp/victorforge-app.tar.gz
+          scp -o BatchMode=yes -o ConnectTimeout=15 \
+            -P "$SERVER_PORT" /tmp/victorforge-app.tar.gz \
+            "$SERVER_USER@$SERVER_HOST:/tmp/victorforge-app.tar.gz"
 
       - name: Build and deploy
         run: |
-          ssh -p 22 ubuntu@82.156.238.108 <<'EOF'
+          ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            "APP_DIR='$APP_DIR' bash -s" <<'EOF'
             set -e
-            mkdir -p ~/apps/victorforge-deploy-demo
-            tar -xzf /tmp/victorforge-app.tar.gz -C ~/apps/victorforge-deploy-demo
-            cd ~/apps/victorforge-deploy-demo
-            sudo docker compose build
+            mkdir -p "$APP_DIR"
+            tar -xzf /tmp/victorforge-app.tar.gz -C "$APP_DIR"
+            cd "$APP_DIR"
             sudo docker rm -f hello-web 2>/dev/null || true
-            sudo docker compose up -d
-            sudo docker image prune -f
+            sudo docker compose up -d --build --remove-orphans
+            sudo docker compose ps
+            rm -f /tmp/victorforge-app.tar.gz
           EOF
